@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Restock forecast{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Restock forecast</h1>
+  <div class="muted">ML-predicted next refill date per customer. Reminders go out automatically when a customer is within {{ reminder_days }} day(s) of their date.</div></div>
+  <form method="post" action="/admin/reminders/send-due" onsubmit="return confirm('Send reminder emails to {{ due_count }} customer(s) now?')">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn" {{ 'disabled' if not due_count }}>Send {{ due_count }} due reminder(s) now</button></form></div>
+{% if not smtp %}<div class="notice">Email is in <b>demo mode</b>: no SMTP server is configured, so emails are saved to <code>data/outbox/</code> and shown under <a href="/admin/reminders">Emails</a> instead of being delivered. See README to connect a real mail account.</div>
+{% elif redirect %}<div class="notice">Test redirect active: every email goes to <b>{{ redirect }}</b> instead of the customer.</div>{% endif %}
+<div class="filters">
+  {% for key, label in [('all','All'),('week','Due in 7 days'),('due','Due for reminder'),('unreminded','Not yet reminded')] %}<a href="?show={{ key }}" class="{{ 'on' if show == key }}">{{ label }}</a>{% endfor %}</div>
+<div class="card"><div class="tbl-wrap"><table>
+<thead><tr><th>Customer</th><th>Type</th><th>Last delivery</th><th>Predicted restock</th><th>Likely window</th><th class="num">Suggested</th><th>Status</th><th></th></tr></thead><tbody>
+{% for r in rows %}<tr>
+  <td><a href="/admin/customers/{{ r.customer_id }}">{{ r.business_name }}</a></td><td>{{ r.segment }}</td>
+  <td class="nowrap">{{ r.last_order_date|fdate }}</td>
+  <td class="nowrap"><b>{{ r.predicted_date|fdate }}</b> <span class="badge {{ 'bad' if r.days_left < 0 else 'warn' if r.days_left <= reminder_days else 'gray' }}">{{ (-r.days_left ~ 'd late') if r.days_left < 0 else ('today' if r.days_left == 0 else 'in ' ~ r.days_left ~ 'd') }}</span></td>
+  <td class="nowrap muted small">{{ r.window_low|fdate }} – {{ r.window_high|fdate }}</td>
+  <td class="num">{{ r.predicted_qty }} &times; {{ r.product_name }}</td>
+  <td>{% if r.has_open %}<span class="badge good">Booked</span>{% elif r.reminded_at %}<span class="badge">Emailed</span>{% elif not r.reminders_enabled %}<span class="badge gray">Opted out</span>{% elif r.method == 'heuristic' %}<span class="badge gray">Few orders</span>{% else %}–{% endif %}</td>
+  <td><form method="post" action="/admin/reminders/send/{{ r.customer_id }}" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn ghost sm">Email now</button></form></td>
+</tr>{% else %}<tr><td colspan="8" class="muted">Nothing here.</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endblock %}

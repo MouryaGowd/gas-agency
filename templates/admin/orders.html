@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Orders{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Orders</h1></div>
+<div class="filters">{% for key, label in [('open','Open bookings'),('unpaid','Unpaid'),('delivered','Delivered'),('cancelled','Cancelled'),('all','All')] %}<a href="?status={{ key }}" class="{{ 'on' if status == key }}">{{ label }}</a>{% endfor %}</div>
+<div class="card"><div class="tbl-wrap"><table>
+<thead><tr><th>#</th><th>Customer</th><th>Date</th><th>Item</th><th class="num">Amount</th><th>Status</th><th>Payment</th><th>Source</th><th>Actions</th></tr></thead><tbody>
+{% for o in rows %}<tr>
+  <td>{{ o.id }}</td><td><a href="/admin/customers/{{ o.customer_id }}">{{ o.business_name }}</a>{% if o.notes %}<div class="muted small">{{ o.notes }}</div>{% endif %}</td>
+  <td class="nowrap">{{ (o.delivery_date or o.requested_date)|fdate }}</td><td>{{ o.qty }} &times; {{ o.product_name }}</td><td class="num">{{ (o.qty*o.unit_price)|inr }}</td>
+  <td><span class="badge {{ {'delivered':'good','cancelled':'gray','confirmed':'good','booked':'warn'}[o.status] }}">{{ o.status|capitalize }}</span></td>
+  <td>{% if o.status == 'delivered' %}<span class="badge {{ 'good' if o.payment_status == 'paid' else 'warn' }}">{{ o.payment_status|capitalize }}</span>{% else %}–{% endif %}</td>
+  <td class="muted small">{{ o.source }}</td>
+  <td><div class="actions">
+    {% if o.status == 'booked' %}<form method="post" action="/admin/orders/{{ o.id }}/confirm" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn sm">Confirm</button></form>{% endif %}
+    {% if o.status in ('booked','confirmed') %}
+      <form method="post" action="/admin/orders/{{ o.id }}/deliver" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="delivery_date" value="{{ today }}"><button class="btn sm ghost">Mark delivered</button></form>
+      <form method="post" action="/admin/orders/{{ o.id }}/cancel" class="inline" onsubmit="return confirm('Cancel order #{{ o.id }}?')"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn sm danger">Cancel</button></form>{% endif %}
+    {% if o.status == 'delivered' and o.payment_status == 'unpaid' %}<form method="post" action="/admin/orders/{{ o.id }}/paid" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn sm">Mark paid</button></form>{% endif %}
+  </div></td></tr>{% else %}<tr><td colspan="9" class="muted">No orders.</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endblock %}

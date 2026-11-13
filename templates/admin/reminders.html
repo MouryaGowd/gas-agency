@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Emails{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Reminder emails</h1><div class="muted">Everything the system has sent (or saved to the outbox in demo mode).</div></div></div>
+<div class="card"><div class="tbl-wrap"><table><thead><tr><th>When</th><th>Customer</th><th>To</th><th>Predicted date</th><th>Status</th><th>Detail</th><th></th></tr></thead><tbody>
+{% for r in rows %}<tr><td class="nowrap">{{ r.created_at }}</td><td><a href="/admin/customers/{{ r.customer_id }}">{{ r.business_name }}</a></td><td>{{ r.to_email }}</td><td>{{ r.predicted_date|fdate }}</td>
+<td><span class="badge {{ {'sent':'good','logged':'warn','failed':'bad'}.get(r.status, 'gray') }}">{{ 'Saved (demo)' if r.status == 'logged' else r.status|capitalize }}</span></td>
+<td class="muted small">{{ r.detail }}</td><td><a href="/admin/reminders/{{ r.id }}">View</a></td></tr>
+{% else %}<tr><td colspan="7" class="muted">No emails yet. Use "Send due reminders" on the forecast page.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

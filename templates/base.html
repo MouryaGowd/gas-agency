@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ business_name }}{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar"><div class="wrap">
+  <a class="brand" href="/">{{ business_name }}{% if user and user.role == 'admin' %}<small>Dealer</small>{% endif %}</a>
+  <nav class="nav">
+  {% if user and user.role == 'admin' %}
+    <a href="/admin" class="{{ 'on' if path == '/admin' }}">Dashboard</a>
+    <a href="/admin/forecast" class="{{ 'on' if path.startswith('/admin/forecast') }}">Restock forecast</a>
+    <a href="/admin/orders" class="{{ 'on' if path.startswith('/admin/orders') }}">Orders</a>
+    <a href="/admin/customers" class="{{ 'on' if path.startswith('/admin/customers') }}">Customers</a>
+    <a href="/admin/receivables" class="{{ 'on' if path.startswith('/admin/receivables') }}">Receivables</a>
+    <a href="/admin/reminders" class="{{ 'on' if path.startswith('/admin/reminders') }}">Emails</a>
+    <a href="/admin/model" class="{{ 'on' if path.startswith('/admin/model') }}">ML model</a>
+  {% elif user %}
+    <a href="/portal" class="on">My account</a>
+  {% endif %}
+  </nav>
+  {% if user %}
+  <form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <span class="muted small">{{ user.email }}</span> <button class="btn ghost sm">Log out</button></form>
+  {% else %}
+  <span class="actions"><a class="btn ghost sm" href="/login">Customer login</a><a class="btn ghost sm" href="/admin/login">Dealer login</a></span>
+  {% endif %}
+</div></header>
+<main class="wrap">
+{% if flash %}<div class="flash {{ 'err' if flash[0] == 'err' }}" role="status">{{ flash[1] }}</div>{% endif %}
+{% block content %}{% endblock %}
+</main>
+<div id="tip" role="tooltip"></div>
+<script src="/static/charts.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Email #{{ r.id }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{{ r.subject }}</h1><div class="muted">To {{ r.to_email }} &middot; {{ r.created_at }} &middot; {{ r.status }}</div></div><a class="btn ghost" href="/admin/reminders">Back</a></div>
+<div class="email-frame">{{ r.body_html|safe }}</div>
+<p class="small muted">Preview of the stored message. The booking link inside is a signed, personal link and expires after 14 days.</p>
+{% endblock %}

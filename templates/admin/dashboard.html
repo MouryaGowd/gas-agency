@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% macro delta(v) %}{% if v is not none %}<span class="delta {{ 'up' if v >= 0 else 'down' }}">{{ '▲' if v >= 0 else '▼' }} {{ '%.1f'|format(v|abs) }}%</span> vs prior {{ days }}d{% else %}no prior data{% endif %}{% endmacro %}
+{% block content %}
+<div class="page-head"><div><h1>Dashboard</h1><div class="muted">{{ d.start|fdate }} – {{ d.end|fdate }} &middot; revenue counted on delivery</div></div>
+  <div class="filters" style="margin:0">{% for r in [7,30,90,180,365] %}<a href="/admin?days={{ r }}" class="{{ 'on' if r == days }}">{{ r }}d</a>{% endfor %}</div></div>
+
+<div class="kpis">
+  <div class="kpi"><div class="label">Revenue</div><div class="value">{{ d.cur.revenue|inr }}</div><div class="sub">{{ delta(d.delta.revenue) }}</div></div>
+  <div class="kpi"><div class="label">Gross profit</div><div class="value">{{ d.cur.profit|inr }}</div><div class="sub">{{ '%.1f'|format(d.cur.margin_pct) }}% margin &middot; {{ delta(d.delta.profit) }}</div></div>
+  <div class="kpi"><div class="label">Cylinders delivered</div><div class="value">{{ d.cur.cylinders|num }}</div><div class="sub">{{ delta(d.delta.cylinders) }}</div></div>
+  <div class="kpi"><div class="label">Avg cylinders / order</div><div class="value">{{ '%.1f'|format(d.cur.avg_per_order) }}</div><div class="sub">{{ d.cur.orders }} orders &middot; avg {{ d.cur.avg_order_value|inr }}</div></div>
+  <div class="kpi"><div class="label">Avg cylinders / customer / month</div><div class="value">{{ '%.1f'|format(d.cur.avg_per_customer_month) }}</div><div class="sub">{{ d.cur.customers }} active of {{ d.customers_total }}</div></div>
+  <div class="kpi"><div class="label">Revenue / cylinder</div><div class="value">{{ d.cur.revenue_per_cylinder|inr }}</div></div>
+  <div class="kpi"><div class="label">Receivables</div><div class="value">{{ d.recv.total|inr }}</div><div class="sub"><span class="delta down">{{ d.recv.overdue|inr }}</span> overdue &middot; <a href="/admin/receivables">details</a></div></div>
+  <div class="kpi"><div class="label">Collected this period</div><div class="value">{{ d.collected|inr }}</div><div class="sub">avg {{ '%.0f'|format(d.avg_days_to_pay or 0) }} days to pay</div></div>
+</div>
+
+<div class="grid g2">
+  <section class="card"><h2>Restock radar</h2>
+    <p style="margin:0 0 8px"><a href="/admin/forecast?show=week"><b>{{ d.due_soon }}</b> customer(s)</a> expected to restock within 7 days
+      &middot; <a href="/admin/forecast?show=due"><b>{{ d.overdue_restock }}</b></a> already past their predicted date</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Customer</th><th>Expected</th><th class="num">Qty</th><th>Email</th></tr></thead><tbody>
+    {% for u in upcoming %}{% set dl = days_from_today(u.predicted_date) %}<tr>
+      <td><a href="/admin/customers/{{ u.customer_id }}">{{ u.business_name }}</a></td>
+      <td class="nowrap">{{ u.predicted_date|fdate }} <span class="badge {{ 'bad' if dl < 0 else 'warn' if dl <= 3 else 'gray' }}">{{ (-dl ~ 'd late') if dl < 0 else ('today' if dl == 0 else dl ~ 'd') }}</span></td>
+      <td class="num">{{ u.predicted_qty }}</td><td>{{ 'Sent' if u.reminded else '–' }}</td></tr>{% endfor %}
+    </tbody></table></div></section>
+
+  <section class="card"><h2>Revenue &amp; profit by month</h2>
+    <div class="legend"><span><i style="background:var(--series-1)"></i>Revenue</span><span><i style="background:var(--series-2)"></i>Gross profit</span></div>
+    <div class="chart" data-chart="bars" data-config='{{ {"title":"Revenue and profit by month","unit":"inr","labels":d.months|map(attribute="month")|list,"series":[{"name":"Revenue","color":"var(--series-1)","values":d.months|map(attribute="revenue")|list},{"name":"Gross profit","color":"var(--series-2)","values":d.months|map(attribute="profit")|list}]}|tojson }}'></div>
+    <details class="table-view"><summary>View as table</summary><div class="tbl-wrap"><table><thead><tr><th>Month</th><th class="num">Revenue</th><th class="num">Profit</th><th class="num">Cylinders</th></tr></thead><tbody>
+    {% for m in d.months %}<tr><td>{{ m.month }}</td><td class="num">{{ m.revenue|inr }}</td><td class="num">{{ m.profit|inr }}</td><td class="num">{{ m.cylinders|num }}</td></tr>{% endfor %}</tbody></table></div></details></section>
+</div>
+
+<div class="grid g2">
+  <section class="card"><h2>Cylinders delivered per month</h2>
+    <div class="chart" data-chart="line" data-config='{{ {"title":"Cylinders per month","unit":"num","labels":d.months|map(attribute="month")|list,"series":[{"name":"Cylinders","color":"var(--series-1)","values":d.months|map(attribute="cylinders")|list}]}|tojson }}'></div></section>
+  <section class="card"><h2>Revenue by customer type</h2>
+    {% if d.segments %}<div class="chart" data-chart="hbars" data-config='{{ {"title":"Revenue by segment","unit":"inr","color":"var(--series-1)","labels":d.segments|map(attribute="segment")|list,"values":d.segments|map(attribute="revenue")|list}|tojson }}'></div>{% else %}<p class="muted">No deliveries in this period.</p>{% endif %}</section>
+</div>
+
+<section class="card"><h2>Top customers</h2><div class="tbl-wrap"><table>
+<thead><tr><th>Customer</th><th>Type</th><th class="num">Orders</th><th class="num">Cylinders</th><th class="num">Revenue</th><th class="num">Share</th></tr></thead><tbody>
+{% for t in d.top %}<tr><td><a href="/admin/customers/{{ t.id }}">{{ t.business_name }}</a></td><td>{{ t.segment }}</td><td class="num">{{ t.orders }}</td><td class="num">{{ t.cylinders|num }}</td><td class="num">{{ t.revenue|inr }}</td><td class="num">{{ '%.1f'|format(t.revenue / d.cur.revenue * 100) if d.cur.revenue else '–' }}%</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% if d.pipeline.n %}<div class="notice">{{ d.pipeline.n }} open booking(s), {{ d.pipeline.q }} cylinders, worth {{ d.pipeline.v|inr }} &mdash; <a href="/admin/orders">review</a></div>{% endif %}
+{% endblock %}

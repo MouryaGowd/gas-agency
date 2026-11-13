@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Book your refill{% endblock %}
+{% block content %}
+<div class="auth card" style="max-width:520px">
+{% if expired %}
+  <h1>Link expired</h1>
+  <p>This booking link is no longer valid. Please log in to book your refill.</p>
+  <a class="btn" href="/login">Customer login</a>
+{% elif done %}
+  <h1>Booking received ✔</h1>
+  <p>Thank you, {{ cust.contact_name }}. Your booking <b>#{{ order_id }}</b> for <b>{{ qty }}</b> cylinder(s) on
+  <b>{{ requested_date|fdate }}</b> has been placed. We will confirm it shortly.</p>
+  <a class="btn ghost" href="/login">Manage my account</a>
+{% else %}
+  <h1>Book your refill</h1>
+  <p class="muted">{{ cust.business_name }} &middot; {{ cust.address }}</p>
+  {% if existing %}
+    <div class="notice">You already have an open booking (#{{ existing.id }}) for {{ existing.requested_date|fdate }}. Log in to change it.</div>
+    <a class="btn" href="/login">Customer login</a>
+  {% else %}
+  {% if error %}<div class="flash err" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" action="/book/{{ token }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <div class="field"><label for="pr">Cylinder size</label>
+      <select id="pr" name="product_id">{% for p in products %}
+        <option value="{{ p.id }}" {{ 'selected' if p.id == data.p }}>{{ p.name }} &mdash; {{ p.price|inr }}</option>{% endfor %}</select></div>
+    <div class="row">
+      <div class="field"><label for="q">Quantity</label><input id="q" name="qty" type="number" min="1" max="100" value="{{ data.q }}" required></div>
+      <div class="field"><label for="d">Delivery date</label><input id="d" name="requested_date" type="date" min="{{ min_date }}" max="{{ max_date }}" value="{{ default_date }}" required></div>
+    </div>
+    <div class="field"><label for="nt">Notes (optional)</label><input id="nt" name="notes" maxlength="300"></div>
+    <button class="btn block">Confirm booking</button>
+  </form>
+  {% endif %}
+{% endif %}
+</div>
+{% endblock %}

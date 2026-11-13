@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Create account{% endblock %}
+{% block content %}
+<div class="auth card" style="max-width:560px">
+  <h1>Create business account</h1>
+  {% if error %}<div class="flash err" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" action="/register">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <div class="row">
+      <div class="field"><label for="b">Business name</label><input id="b" name="business_name" value="{{ form.business_name or '' }}" required></div>
+      <div class="field"><label for="s">Business type</label>
+        <select id="s" name="segment" required><option value="">Select…</option>
+        {% for s in segments %}<option {{ 'selected' if form.segment == s }}>{{ s }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="n">Contact person</label><input id="n" name="contact_name" value="{{ form.contact_name or '' }}" required></div>
+      <div class="field"><label for="p">Phone</label><input id="p" name="phone" value="{{ form.phone or '' }}"></div>
+    </div>
+    <div class="field"><label for="a">Delivery address</label><textarea id="a" name="address" rows="2" required>{{ form.address or '' }}</textarea></div>
+    <div class="row">
+      <div class="field"><label for="e">Email</label><input id="e" name="email" type="email" value="{{ form.email or '' }}" autocomplete="username" required></div>
+      <div class="field"><label for="pw">Password (8+ characters)</label><input id="pw" name="password" type="password" minlength="8" autocomplete="new-password" required></div>
+    </div>
+    <button class="btn block">Create account</button>
+  </form>
+  <p class="small muted" style="margin-top:14px">Already registered? <a href="/login">Log in</a></p>
+</div>
+{% endblock %}

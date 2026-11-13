@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}My account{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{{ customer.business_name }}</h1><div class="muted">{{ customer.segment }} &middot; {{ customer.address }}</div></div></div>
+
+<div class="kpis">
+  <div class="kpi"><div class="label">Next refill expected</div>
+    <div class="value">{{ pred.predicted_date|fdate if pred else '–' }}</div>
+    <div class="sub">{% if pred %}{% set dl = days_from_today(pred.predicted_date) %}{{ 'in ' ~ dl ~ ' day(s)' if dl >= 0 else (-dl) ~ ' day(s) ago' }} &middot; usually {{ pred.predicted_qty }} &times; {{ pred.product_name }}{% else %}Needs a few deliveries first{% endif %}</div></div>
+  <div class="kpi"><div class="label">Cylinders received</div><div class="value">{{ summary.cylinders|num }}</div><div class="sub">{{ summary.orders }} deliveries</div></div>
+  <div class="kpi"><div class="label">Total purchases</div><div class="value">{{ summary.revenue|inr }}</div></div>
+  <div class="kpi"><div class="label">Outstanding</div><div class="value">{{ summary.outstanding|inr }}</div><div class="sub">{{ 'Credit terms: ' ~ customer.credit_days ~ ' days' if customer.credit_days else 'Pay on delivery' }}</div></div>
+</div>
+
+<div class="grid g2">
+  <section class="card">
+    {% if open_order %}
+      <h2>Your open booking</h2>
+      <p><b>#{{ open_order.id }}</b> &middot; {{ open_order.qty }} cylinder(s) &middot; requested for <b>{{ open_order.requested_date|fdate }}</b></p>
+      <p><span class="badge {{ 'good' if open_order.status == 'confirmed' else 'warn' }}">{{ open_order.status|capitalize }}</span></p>
+      <form method="post" action="/portal/cancel/{{ open_order.id }}" class="inline" onsubmit="return confirm('Cancel this booking?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn danger sm">Cancel booking</button></form>
+    {% else %}
+      <h2>Book a refill</h2>
+      <form method="post" action="/portal/book">
+        <input type="hidden" name="csrf_token" value="{{ csrf }}">
+        <div class="field"><label for="pr">Cylinder size</label>
+          <select id="pr" name="product_id">{% for p in products %}<option value="{{ p.id }}" {{ 'selected' if pred and p.id == pred.product_id }}>{{ p.name }} &mdash; {{ p.price|inr }}</option>{% endfor %}</select></div>
+        <div class="row">
+          <div class="field"><label for="q">Quantity</label><input id="q" name="qty" type="number" min="1" max="100" value="{{ pred.predicted_qty if pred else 1 }}" required></div>
+          <div class="field"><label for="d">Delivery date</label><input id="d" name="requested_date" type="date" min="{{ min_date }}" max="{{ max_date }}" value="{{ default_date }}" required></div>
+        </div>
+        <div class="field"><label for="nt">Notes (optional)</label><input id="nt" name="notes" maxlength="300"></div>
+        <button class="btn">Place booking</button>
+      </form>
+    {% endif %}
+  </section>
+  <section class="card">
+    <h2>Reminder emails</h2>
+    <p class="muted">We email you a few days before you are expected to run out, with a one-click booking link.</p>
+    <form method="post" action="/portal/reminders"><input type="hidden" name="csrf_token" value="{{ csrf }}">
+      <input type="hidden" name="enabled" value="{{ '0' if customer.reminders_enabled else '1' }}">
+      <span class="badge {{ 'good' if customer.reminders_enabled else 'gray' }}">{{ 'On' if customer.reminders_enabled else 'Off' }}</span>
+      <button class="btn ghost sm">{{ 'Turn off' if customer.reminders_enabled else 'Turn on' }}</button></form>
+  </section>
+</div>
+
+<section class="card"><h2>Order history</h2>
+<div class="tbl-wrap"><table>
+<thead><tr><th>#</th><th>Date</th><th>Item</th><th class="num">Qty</th><th class="num">Amount</th><th>Status</th><th>Payment</th></tr></thead>
+<tbody>{% for o in history %}<tr>
+  <td>{{ o.id }}</td><td>{{ (o.delivery_date or o.requested_date)|fdate }}</td><td>{{ o.product_name }}</td>
+  <td class="num">{{ o.qty }}</td><td class="num">{{ (o.qty*o.unit_price)|inr }}</td>
+  <td><span class="badge {{ {'delivered':'good','cancelled':'gray','confirmed':'good','booked':'warn'}[o.status] }}">{{ o.status|capitalize }}</span></td>
+  <td>{% if o.status == 'delivered' %}<span class="badge {{ 'good' if o.payment_status == 'paid' else 'warn' }}">{{ o.payment_status|capitalize }}</span>{% else %}–{% endif %}</td>
+</tr>{% else %}<tr><td colspan="7" class="muted">No orders yet.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

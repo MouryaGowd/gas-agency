@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ c.business_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{{ c.business_name }}</h1><div class="muted">{{ c.segment }} &middot; {{ c.contact_name }} &middot; {{ c.email }} &middot; {{ c.phone or 'no phone' }}<br>{{ c.address }}</div></div>
+  <div class="actions">
+    <form method="post" action="/admin/reminders/send/{{ c.id }}" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn ghost">Email reminder now</button></form>
+    <form method="post" action="/admin/customers/{{ c.id }}/reminders" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="enabled" value="{{ '0' if c.reminders_enabled else '1' }}"><button class="btn ghost">{{ 'Disable' if c.reminders_enabled else 'Enable' }} auto-reminders</button></form></div></div>
+<div class="kpis">
+  <div class="kpi"><div class="label">Next restock (predicted)</div><div class="value">{{ pred.predicted_date|fdate if pred else '–' }}</div><div class="sub">{% if pred %}window {{ pred.window_low|fdate }} – {{ pred.window_high|fdate }} &middot; {{ 'ML model' if pred.method == 'ml' else 'simple average' }}{% endif %}</div></div>
+  <div class="kpi"><div class="label">Typical refill gap</div><div class="value">{{ '%.1f'|format(avg_gap) if avg_gap else '–' }} d</div><div class="sub">{{ summary.orders }} deliveries</div></div>
+  <div class="kpi"><div class="label">Lifetime revenue</div><div class="value">{{ summary.revenue|inr }}</div><div class="sub">{{ summary.cylinders|num }} cylinders</div></div>
+  <div class="kpi"><div class="label">Outstanding</div><div class="value">{{ summary.outstanding|inr }}</div><div class="sub">Credit: {{ c.credit_days }} days</div></div>
+</div>
+{% if gaps|length > 1 %}<section class="card"><h2>Days between refills (latest {{ gaps|length }})</h2>
+  <div class="chart" data-chart="line" data-config='{{ {"title":"Days between refills","unit":"num","labels":range(1, gaps|length + 1)|map("string")|list,"series":[{"name":"Days since previous delivery","color":"var(--series-1)","values":gaps}]}|tojson }}'></div></section>{% endif %}
+<section class="card"><h2>Order history</h2><div class="tbl-wrap"><table>
+<thead><tr><th>#</th><th>Date</th><th>Item</th><th class="num">Amount</th><th>Status</th><th>Payment</th><th>Source</th></tr></thead><tbody>
+{% for o in hist %}<tr><td>{{ o.id }}</td><td>{{ (o.delivery_date or o.requested_date)|fdate }}</td><td>{{ o.qty }} &times; {{ o.product_name }}</td><td class="num">{{ (o.qty*o.unit_price)|inr }}</td>
+<td><span class="badge {{ {'delivered':'good','cancelled':'gray','confirmed':'good','booked':'warn'}[o.status] }}">{{ o.status|capitalize }}</span></td>
+<td>{% if o.status == 'delivered' %}<span class="badge {{ 'good' if o.payment_status == 'paid' else 'warn' }}">{{ o.payment_status|capitalize }}</span>{% else %}–{% endif %}</td><td class="muted small">{{ o.source }}</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endblock %}

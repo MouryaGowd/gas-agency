@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}ML model{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Restock prediction model</h1><div class="muted">Predicts days until a customer's next refill from their order history.</div></div>
+  <form method="post" action="/admin/model/retrain"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button class="btn">Retrain on current data</button></form></div>
+{% if counts.synthetic %}<div class="notice"><b>{{ counts.synthetic }} of {{ counts.customers }} customers are synthetic test data.</b> Accuracy below reflects the generated data, not real customers. Once real orders accumulate, retrain here.</div>{% endif %}
+{% if m %}
+<div class="kpis">
+  <div class="kpi"><div class="label">Hold-out error (MAE)</div><div class="value">{{ m.mae_days }} days</div><div class="sub">on {{ m.test_rows }} unseen orders</div></div>
+  <div class="kpi"><div class="label">Within 2 days</div><div class="value">{{ m.within_2_days_pct }}%</div><div class="sub">of predictions</div></div>
+  <div class="kpi"><div class="label">Beats customer's own average by</div><div class="value">{{ m.improvement_vs_own_mean_pct }}%</div><div class="sub">own avg: {{ m.baseline_own_mean_mae }}d &middot; segment avg: {{ m.baseline_segment_mae }}d</div></div>
+  <div class="kpi"><div class="label">Trained</div><div class="value" style="font-size:1.1rem">{{ m.trained_at.replace('T',' ') }}</div><div class="sub">{{ m.total_rows }} examples &middot; {{ counts.ml_preds }} live predictions</div></div>
+</div>
+<div class="grid g2">
+  <section class="card"><h2>What drives the prediction</h2>
+    <div class="chart" data-chart="hbars" data-config='{{ {"title":"Feature importance","unit":"num","color":"var(--series-1)","labels":m.importances|map(attribute="feature")|list,"values":m.importances|map(attribute="importance")|map("float")|map("multiply100")|list}|tojson }}'></div></section>
+  <section class="card"><h2>How it works</h2>
+    <p>For each customer, the model looks at the gaps between their past deliveries (latest, average, recent-weighted, variability), typical quantity, customer type and time of year, then predicts the gap until the next refill. Predicted restock date = last delivery + predicted gap.</p>
+    <p>Honest evaluation: the model is trained on the earlier 80% of orders and scored on the later 20% it never saw. The likely window comes from the 10th–90th percentile of those errors ({{ m.window_low_offset }} to +{{ m.window_high_offset }} days).</p>
+    <p class="muted small">{{ m.algorithm }}. Customers with fewer than 3 deliveries use a simple average instead.</p></section>
+</div>
+{% else %}<div class="card">No model trained yet.</div>{% endif %}
+<section class="card"><h2>Synthetic data</h2>
+  <p class="muted">Replaces all synthetic customers and their orders with a fresh set (150 customers, ~24 months of history) and retrains. Real customers are never touched.</p>
+  <form method="post" action="/admin/model/regenerate" class="actions"><input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <input name="confirm" placeholder="Type REPLACE to confirm" style="width:220px" autocomplete="off"><button class="btn danger">Regenerate synthetic data</button></form></section>
+{% endblock %}

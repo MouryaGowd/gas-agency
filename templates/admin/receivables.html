@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Receivables{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Receivables</h1><div class="muted">Delivered but unpaid orders, aged from each customer's due date (delivery + credit days).</div></div></div>
+<div class="kpis">
+  <div class="kpi"><div class="label">Total outstanding</div><div class="value">{{ r.total|inr }}</div></div>
+  <div class="kpi"><div class="label">Overdue</div><div class="value">{{ r.overdue|inr }}</div><div class="sub">{{ '%.0f'|format(r.overdue / r.total * 100) if r.total else 0 }}% of outstanding</div></div>
+</div>
+<section class="card"><h2>Ageing</h2>
+  <div class="chart" data-chart="hbars" data-config='{{ {"title":"Receivables ageing","unit":"inr","color":"var(--series-1)","labels":r.buckets.keys()|list,"values":r.buckets.values()|list,"colors":["var(--series-1)","var(--series-2)","var(--series-2)","var(--series-2)"]}|tojson }}'></div></section>
+<section class="card"><h2>By customer</h2><div class="tbl-wrap"><table>
+<thead><tr><th>Customer</th><th class="num">Invoices</th><th class="num">Outstanding</th><th class="num">Overdue</th><th class="num">Oldest overdue</th></tr></thead><tbody>
+{% for c in r.customers %}<tr><td><a href="/admin/customers/{{ c.customer_id }}">{{ c.business_name }}</a></td><td class="num">{{ c.invoices }}</td><td class="num">{{ c.outstanding|inr }}</td><td class="num">{{ c.overdue|inr }}</td>
+<td class="num">{% if c.oldest_days_late > 0 %}<span class="badge {{ 'bad' if c.oldest_days_late > 30 else 'warn' }}">{{ c.oldest_days_late }} d</span>{% else %}–{% endif %}</td></tr>
+{% else %}<tr><td colspan="5" class="muted">Nothing outstanding.</td></tr>{% endfor %}</tbody></table></div>
+<p class="small muted">Mark orders paid from the <a href="/admin/orders?status=unpaid">Orders</a> page.</p></section>
+{% endblock %}
